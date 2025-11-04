@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShareWorks Grant Visualizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #f9f9fb;
+            --panel: #ffffff;
+            --panel-border: #e2e3e9;
+            --text: #1f2430;
+            --muted: #545b6b;
+            --accent: #3c82f6;
+            --accent-bg: rgba(60, 130, 246, 0.15);
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1d28;
+                --panel: #23273a;
+                --panel-border: #33384d;
+                --text: #e4e6eb;
+                --muted: #9ca3af;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            padding: 1.5rem;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        h2 {
+            margin: 0;
+        }
+
+        p {
+            margin: 0.5rem 0;
+            color: var(--muted);
+        }
+
+        .layout {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: minmax(280px, 340px) 1fr;
+            align-items: flex-start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px -8px rgba(31, 36, 48, 0.15);
+        }
+
+        .section-heading {
+            margin: 0 0 0.75rem 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        input[type="number"], input[type="text"], input[type="file"] {
+            width: 100%;
+            font: inherit;
+            padding: 0.6rem 0.75rem;
+            border-radius: 8px;
+            border: 1px solid var(--panel-border);
+            background: var(--bg);
+            color: var(--text);
+            box-sizing: border-box;
+        }
+
+        input[type="number"]:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-bg);
+        }
+
+        input[type="number"] {
+            appearance: textfield;
+            -moz-appearance: textfield;
+        }
+
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .file-drop {
+            border: 2px dashed var(--panel-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: border-color 0.2s ease, background 0.2s ease;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .file-drop:hover {
+            border-color: var(--accent);
+        }
+
+        .file-drop.dragover {
+            border-color: var(--accent);
+            background: var(--accent-bg);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.35rem 0.7rem;
+            border-radius: 999px;
+            background: var(--accent-bg);
+            color: var(--accent);
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 0.75rem;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .metrics .metric {
+            background: linear-gradient(135deg, rgba(60, 130, 246, 0.08), rgba(60, 130, 246, 0.04));
+            border: 1px solid rgba(60, 130, 246, 0.18);
+            border-radius: 10px;
+            padding: 1rem;
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.4rem;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .chart-panel {
+            min-height: 600px;
+            position: relative;
+        }
+
+        .upcoming-section {
+            margin-top: 2rem;
+            display: grid;
+            gap: 1rem;
+        }
+
+        .upcoming-empty {
+            border: 1px dashed var(--panel-border);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .upcoming-table-wrapper {
+            overflow-x: auto;
+        }
+
+        .upcoming-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .upcoming-table th,
+        .upcoming-table td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--panel-border);
+            text-align: left;
+            font-size: 0.85rem;
+            vertical-align: top;
+        }
+
+        .upcoming-table th {
+            background: linear-gradient(135deg, rgba(60, 130, 246, 0.12), rgba(60, 130, 246, 0.05));
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .upcoming-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .upcoming-details-cell {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+
+        .upcoming-grant-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 999px;
+            border: 1px solid var(--panel-border);
+            background: var(--bg);
+            font-size: 0.75rem;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .upcoming-grant-chip span:first-child {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        #chartContainer {
+            position: relative;
+            min-height: 400px;
+        }
+
+        #chartContainer canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--muted);
+            border: 1px dashed var(--panel-border);
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chip-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            margin-top: 1rem;
+        }
+
+        .chip {
+            border-radius: 8px;
+            padding: 0.6rem 0.8rem;
+            border: 1px solid var(--panel-border);
+            background: var(--bg);
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        .chip strong {
+            display: block;
+            margin-bottom: 0.2rem;
+            color: var(--text);
+        }
+
+        .chip small {
+            color: var(--muted);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--panel-border);
+            margin: 1.25rem 0;
+        }
+
+        .result-box {
+            background: var(--bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-top: 0.75rem;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .result-box strong {
+            display: block;
+            margin-bottom: 0.25rem;
+            color: var(--text);
+        }
+
+        #chart-tooltip {
+            position: absolute;
+            background: rgba(31, 36, 48, 0.95);
+            color: #fff;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            pointer-events: none;
+            transition: all 0.15s ease;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            opacity: 0;
+            z-index: 1000;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        #chart-tooltip .tooltip-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        #chart-tooltip table {
+            border-collapse: collapse;
+            min-width: 280px;
+        }
+
+        #chart-tooltip th,
+        #chart-tooltip td {
+            padding: 0.3rem 0.5rem;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        #chart-tooltip th:first-child,
+        #chart-tooltip td:first-child {
+            text-align: left;
+            padding-left: 0;
+        }
+
+        #chart-tooltip td:nth-child(2) {
+            text-align: left;
+        }
+
+        #chart-tooltip tfoot {
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        #chart-tooltip tfoot td {
+            padding-top: 0.5rem;
+            font-weight: 600;
+        }
+
+        @media (max-width: 1024px) {
+            body {
+                padding: 1rem;
+            }
+
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .metrics {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            }
+
+            .upcoming-table {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📊 ShareWorks Grant Visualizer</h1>
+        <p>Load exported ShareWorks "Employee Grant Details" HTML files to visualize your equity vesting progress and calculate values over time.</p>
+    </header>
+
+    <div class="layout">
+        <aside class="panel" aria-label="controls">
+            <h2 class="section-heading">📁 Grant Files</h2>
+            <label for="grantFiles">Upload ShareWorks HTML exports</label>
+            <div id="fileDrop" class="file-drop" tabindex="0">
+                <div>📂 Drop files here or click to select</div>
+                <div style="font-size: 0.75rem; margin-top: 0.5rem;">Supports multiple files</div>
+            </div>
+            <input id="grantFiles" type="file" accept="text/html,.html" multiple class="hidden">
+            <p id="fileCount" class="badge hidden">0 files loaded</p>
+
+            <div class="divider"></div>
+
+            <h2 class="section-heading">💰 Share Price</h2>
+            <label for="sharePrice">Current share price</label>
+            <input id="sharePrice" type="number" min="0" step="0.01" value="0" placeholder="Enter current price">
+
+            <div class="divider"></div>
+
+            <h2 class="section-heading">🔮 What If Calculator</h2>
+            <label for="priceChange">Future price change (%)</label>
+            <input id="priceChange" type="number" step="0.1" value="0" placeholder="e.g., 50 for +50%">
+            <div class="result-box" id="priceChangeResult">
+                Enter a share price and % change to calculate projected value.
+            </div>
+
+            <section id="grantSummary" class="chip-list hidden" aria-live="polite"></section>
+        </aside>
+
+        <main class="panel chart-panel" aria-live="polite">
+            <h2 class="section-heading">📈 Vesting Timeline</h2>
+            <div class="metrics" id="metrics">
+                <div class="metric">
+                    <div class="metric-label">Total Vested</div>
+                    <div class="metric-value" id="totalShares">0</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Current Value</div>
+                    <div class="metric-value" id="totalValue">$0.00</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Projected Value</div>
+                    <div class="metric-value" id="projectedValue">$0.00</div>
+                </div>
+            </div>
+
+            <div id="chartContainer" class="empty-state" role="status">
+                <p>📤 Load one or more grant files to see your vesting progress chart</p>
+            </div>
+
+            <section id="upcomingSection" class="upcoming-section" aria-live="polite">
+                <h3 class="section-heading">🗓 Upcoming Vests</h3>
+                <div id="upcomingEmpty" class="upcoming-empty">Load grant files to see upcoming vesting events.</div>
+                <div class="upcoming-table-wrapper">
+                    <table id="upcomingTable" class="upcoming-table hidden">
+                        <thead>
+                            <tr>
+                                <th scope="col">Vest Date</th>
+                                <th scope="col">Time Until</th>
+                                <th scope="col">Shares</th>
+                                <th scope="col">Value</th>
+                                <th scope="col">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="upcomingTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <script>
+        // DOM Elements
+        const fileInput = document.getElementById('grantFiles');
+        const fileDrop = document.getElementById('fileDrop');
+        const fileCountBadge = document.getElementById('fileCount');
+        const sharePriceInput = document.getElementById('sharePrice');
+        const priceChangeInput = document.getElementById('priceChange');
+        const priceChangeResult = document.getElementById('priceChangeResult');
+        const totalSharesEl = document.getElementById('totalShares');
+        const totalValueEl = document.getElementById('totalValue');
+        const projectedValueEl = document.getElementById('projectedValue');
+        const chartContainer = document.getElementById('chartContainer');
+        const grantSummary = document.getElementById('grantSummary');
+        const upcomingTable = document.getElementById('upcomingTable');
+        const upcomingTableBody = document.getElementById('upcomingTableBody');
+        const upcomingEmptyState = document.getElementById('upcomingEmpty');
+
+        // State
+        let grantData = [];
+        let timeline = [];
+        let chartInstance = null;
+        let currencyCode = 'USD';
+        const MS_IN_DAY = 24 * 60 * 60 * 1000;
+
+        /**
+         * Load and parse HTML grant files
+         */
+        const loadFiles = files => {
+            const relevantFiles = Array.from(files).filter(file => 
+                file.name.toLowerCase().endsWith('.html') || file.type === 'text/html'
+            );
+            
+            if (!relevantFiles.length) {
+                alert('⚠️ Please select ShareWorks HTML files.');
+                return;
+            }
+
+            Promise.all(relevantFiles.map(file => 
+                file.text().then(raw => ({ raw, name: file.name }))
+            ))
+            .then(parsed => {
+                const extracted = parsed.map(parseGrantHtml).filter(Boolean);
+                if (!extracted.length) {
+                    alert('⚠️ Could not parse grant data. Ensure files are "Employee Grant Details" exports from ShareWorks.');
+                    return;
+                }
+                
+                grantData = extracted;
+                fileCountBadge.textContent = `${grantData.length} grant${grantData.length === 1 ? '' : 's'} loaded`;
+                fileCountBadge.classList.remove('hidden');
+                
+                currencyCode = detectCurrency(grantData);
+                renderGrantSummary(grantData);
+                buildTimeline();
+                updateMetrics();
+            })
+            .catch(err => {
+                console.error('Error parsing files:', err);
+                alert('❌ Error parsing files. Check the console for details.');
+            });
+        };
+
+        /**
+         * Parse a single ShareWorks HTML grant file
+         */
+        const parseGrantHtml = ({ raw, name }) => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(raw, 'text/html');
+            
+            const grantInfo = gatherGrantMeta(doc);
+            if (!grantInfo.name) {
+                console.warn('Skipping file without grant name:', name);
+                return null;
+            }
+
+            const { entries, total } = extractVestingSchedule(doc);
+            if (!entries.length) {
+                console.warn('Skipping grant with no vesting rows:', name);
+                return null;
+            }
+
+            return {
+                id: crypto.randomUUID(),
+                fileName: name,
+                ...grantInfo,
+                entries,
+                grantTotal: total
+            };
+        };
+
+        /**
+         * Extract grant metadata from HTML
+         */
+        const extractFieldValue = strongEl => {
+            const parts = [];
+            let node = strongEl.nextSibling;
+            while (node) {
+                if (node.nodeType === Node.ELEMENT_NODE && node.tagName && node.tagName.toLowerCase() === 'br') {
+                    break;
+                }
+
+                const textContent = node.textContent?.trim?.() || '';
+                if (textContent) {
+                    parts.push(textContent);
+                }
+
+                node = node.nextSibling;
+            }
+
+            return parts.join(' ').replace(/\s+/g, ' ').trim();
+        };
+
+        const extractNumericValue = text => {
+            if (!text) return null;
+            const match = text.replace(/\u00a0/g, ' ').match(/[-+]?\d[\d,]*(?:\.\d+)?(?:[eE][-+]?\d+)?/);
+            if (!match) return null;
+            return Number.parseFloat(match[0].replace(/,/g, ''));
+        };
+
+        const gatherGrantMeta = doc => {
+            const meta = { 
+                name: '', 
+                grantDate: '', 
+                grantPrice: 0, 
+                type: 'Unknown', 
+                currency: 'USD' 
+            };
+            
+            const strongTags = Array.from(doc.querySelectorAll('p strong'));
+            strongTags.forEach(tag => {
+                const label = tag.textContent.trim();
+                const valueText = extractFieldValue(tag);
+                if (!valueText) return;
+
+                if (label.startsWith('Grant Name')) {
+                    meta.name = valueText;
+                    const lowerName = valueText.toLowerCase();
+                    if (lowerName.includes('rsu')) meta.type = 'RSU';
+                    if (lowerName.includes('option') || lowerName.includes('nqso') || lowerName.includes('qso')) meta.type = 'Option';
+                }
+                if (label.startsWith('Grant Date')) {
+                    meta.grantDate = valueText;
+                }
+                if (label.startsWith('Grant Price')) {
+                    const numeric = extractNumericValue(valueText);
+                    meta.grantPrice = Number.isFinite(numeric) ? numeric : 0;
+                    const currencyMatch = valueText.match(/\$\s*[\d.,]+\s+([A-Z]{3})\b/);
+                    if (currencyMatch) {
+                        const code = currencyMatch[1];
+                        const validCurrencies = ['USD', 'EUR', 'GBP', 'AUD', 'CAD', 'JPY', 'CNY', 'INR', 'NZD', 'CHF', 'SGD', 'HKD'];
+                        if (validCurrencies.includes(code)) {
+                            meta.currency = code;
+                        }
+                    }
+                }
+            });
+            
+            return meta;
+        };
+
+        /**
+         * Extract vesting schedule table from HTML
+         */
+        const extractVestingSchedule = doc => {
+            const table = doc.querySelector("table[id^='Vest Schedule']");
+            if (!table) return { entries: [], total: 0 };
+
+            const rows = Array.from(table.querySelectorAll('tr'));
+            const bodyRows = rows.filter(row => row.querySelector('td'));
+            const entries = [];
+            let cumulative = 0;
+
+            bodyRows.forEach(row => {
+                const cells = Array.from(row.querySelectorAll('td'));
+                if (cells.length < 6) return;
+                
+                const vestDateText = cells[0].textContent.trim();
+                const grantCell = cells[2]; // Granted column
+                const outstandingCell = cells[5]; // Outstanding column
+                
+                const date = parseDate(vestDateText);
+                if (!date) return;
+                
+                const granted = Number.parseFloat(grantCell.textContent.replace(/[^0-9.\-]/g, '')) || 0;
+                cumulative += granted;
+                
+                const outstanding = Number.parseFloat(outstandingCell.textContent.replace(/[^0-9.\-]/g, '')) || cumulative;
+                
+                entries.push({ date, granted, cumulative, outstanding });
+            });
+
+            return { entries, total: cumulative };
+        };
+
+        /**
+         * Parse date from ShareWorks format (e.g., "15-Feb-2023")
+         */
+        const parseDate = value => {
+            const clean = (value || '').trim();
+            const ordinalStripped = clean.replace(/(st|nd|rd|th)/gi, '');
+            const parts = ordinalStripped.split('-');
+            if (parts.length !== 3) return null;
+            
+            const [dayPart, monthPart, yearPart] = parts;
+            const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+            const monthIndex = monthNames.indexOf(monthPart.slice(0, 3).toLowerCase());
+            const day = Number.parseInt(dayPart, 10);
+            const year = Number.parseInt(yearPart, 10);
+            
+            if (monthIndex < 0 || Number.isNaN(day) || Number.isNaN(year)) return null;
+            return new Date(Date.UTC(year, monthIndex, day));
+        };
+
+        /**
+         * Detect primary currency from all grants
+         */
+        const detectCurrency = grants => {
+            const codes = Array.from(new Set(grants.map(grant => grant.currency).filter(Boolean)));
+            if (codes.length > 1) {
+                console.warn('Multiple currencies detected. Using first:', codes);
+            }
+            return codes[0] || 'USD';
+        };
+
+        /**
+         * Build unified timeline across all grants
+         */
+        const buildTimeline = () => {
+            const points = new Map();
+            
+            grantData.forEach(grant => {
+                grant.entries.forEach(entry => {
+                    if (!entry.date) return;
+                    const key = entry.date.toISOString().slice(0, 10);
+                    if (!points.has(key)) {
+                        points.set(key, { date: entry.date, totals: new Map() });
+                    }
+                    const item = points.get(key);
+                    item.totals.set(grant.id, entry.cumulative);
+                });
+            });
+
+            const sorted = Array.from(points.values()).sort((a, b) => a.date - b.date);
+            
+            // Fill in missing data points with last known value
+            timeline = sorted.map(point => {
+                const breakdown = {};
+                grantData.forEach(grant => {
+                    if (point.totals.has(grant.id)) {
+                        breakdown[grant.id] = point.totals.get(grant.id);
+                    } else {
+                        const lastValue = findLastVestedValue(grant, point.date);
+                        breakdown[grant.id] = lastValue;
+                    }
+                });
+                return { date: point.date, breakdown };
+            });
+
+            renderChart();
+        };
+
+        /**
+         * Find the last vested value for a grant before a reference date
+         */
+        const findLastVestedValue = (grant, referenceDate) => {
+            const relevant = grant.entries.filter(entry => entry.date && entry.date <= referenceDate);
+            if (!relevant.length) return 0;
+            return relevant[relevant.length - 1].cumulative;
+        };
+
+        /**
+         * Sum all grant values at a specific date
+         */
+        const sumAtDate = dateBreakdown => {
+            return Object.values(dateBreakdown).reduce((acc, val) => acc + (val || 0), 0);
+        };
+
+        /**
+         * Create a short, readable name for a grant
+         */
+        const createGrantLabel = grant => {
+            const date = grant.grantDate || 'Unknown';
+            const type = grant.type || 'Grant';
+            const units = grant.grantTotal ? formatNumber(grant.grantTotal) : '0';
+            return `${date}, ${type}, ${units}`;
+        };
+
+        /**
+         * Render the Chart.js chart
+         */
+        const renderChart = () => {
+            if (!timeline.length) {
+                if (chartInstance) {
+                    chartInstance.destroy();
+                    chartInstance = null;
+                }
+                chartContainer.innerHTML = '<p>📤 Load one or more grant files to see your vesting progress chart</p>';
+                chartContainer.className = 'empty-state';
+                return;
+            }
+
+            const labels = timeline.map(point => point.date.toISOString().slice(0, 10));
+            const datasets = grantData.map((grant, index) => {
+                const color = generateColor(index);
+                const data = timeline.map(point => point.breakdown[grant.id] || 0);
+                return {
+                    label: createGrantLabel(grant),
+                    data,
+                    fill: true,
+                    backgroundColor: color.alpha,
+                    borderColor: color.base,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                };
+            });
+
+            const price = Number.parseFloat(sharePriceInput.value) || 0;
+            const intrinsicTotals = grantData.map(grant => {
+                const strike = grant.type === 'Option' ? grant.grantPrice : 0;
+                return timeline.map(point => {
+                    const amount = point.breakdown[grant.id] || 0;
+                    const perShare = grant.type === 'Option' ? Math.max(price - strike, 0) : price;
+                    return amount * perShare;
+                });
+            });
+            const valueTotals = timeline.map((_, idx) => 
+                intrinsicTotals.reduce((acc, grantSeries) => acc + (grantSeries[idx] || 0), 0)
+            );
+
+            // Custom plugin to draw vertical "today" line
+            const todayLinePlugin = {
+                id: 'todayLine',
+                afterDraw: (chart) => {
+                    const ctx = chart.ctx;
+                    const xAxis = chart.scales.x;
+                    const yAxis = chart.scales.y;
+                    
+                    const today = new Date().toISOString().slice(0, 10);
+                    const todayIndex = labels.indexOf(today);
+                    
+                    // If today isn't an exact vest date, find where it falls
+                    let xPosition;
+                    if (todayIndex >= 0) {
+                        xPosition = xAxis.getPixelForValue(todayIndex);
+                    } else {
+                        // Find position between two dates
+                        const todayDate = new Date();
+                        const datesBeforeToday = timeline.filter(p => p.date <= todayDate);
+                        if (datesBeforeToday.length === 0) return; // Today is before first vest
+                        if (datesBeforeToday.length === timeline.length) return; // Today is after last vest
+                        
+                        const lastBeforeIdx = datesBeforeToday.length - 1;
+                        xPosition = xAxis.getPixelForValue(lastBeforeIdx) + 
+                            ((xAxis.getPixelForValue(lastBeforeIdx + 1) - xAxis.getPixelForValue(lastBeforeIdx)) * 0.5);
+                    }
+                    
+                    // Draw the line
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(xPosition, yAxis.top);
+                    ctx.lineTo(xPosition, yAxis.bottom);
+                    ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)'; // Red
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.stroke();
+                    
+                    // Draw label
+                    ctx.font = 'bold 11px Inter, sans-serif';
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('TODAY', xPosition, yAxis.top - 5);
+                    ctx.restore();
+                }
+            };
+
+            const config = {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                boxWidth: 8,
+                                padding: 15,
+                                font: {
+                                    size: 11,
+                                    weight: '600'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            enabled: false,
+                            external: createTooltipHandler(valueTotals)
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    scales: {
+                        y: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Vested Shares',
+                                font: {
+                                    weight: '600'
+                                }
+                            },
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Vest Date',
+                                font: {
+                                    weight: '600'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        }
+                    }
+                },
+                plugins: [todayLinePlugin]
+            };
+
+            if (!chartInstance) {
+                const canvas = document.createElement('canvas');
+                chartContainer.className = '';
+                chartContainer.innerHTML = '';
+                chartContainer.appendChild(canvas);
+                chartInstance = new Chart(canvas.getContext('2d'), config);
+            } else {
+                chartInstance.config.data = config.data;
+                chartInstance.config.options.plugins.tooltip.external = createTooltipHandler(valueTotals);
+                chartInstance.update();
+            }
+        };
+
+        /**
+         * Create custom tooltip handler for hover information
+         */
+        const createTooltipHandler = valueSeries => {
+            const tooltipEl = document.getElementById('chart-tooltip') || createTooltipElement();
+            
+            return context => {
+                const { chart, tooltip } = context;
+                if (!tooltip || tooltip.opacity === 0) {
+                    tooltipEl.style.opacity = 0;
+                    return;
+                }
+
+                const index = tooltip.dataPoints?.[0]?.dataIndex ?? 0;
+                const point = timeline[index];
+                if (!point) return;
+
+                const sharePrice = Number.parseFloat(sharePriceInput.value) || 0;
+                const rows = grantData.map((grant, datasetIdx) => {
+                    const value = point.breakdown[grant.id] || 0;
+                    const strike = grant.type === 'Option' ? grant.grantPrice : 0;
+                    const perShare = grant.type === 'Option' ? Math.max(sharePrice - strike, 0) : sharePrice;
+                    const worth = value * perShare;
+                    const color = chart.config.data.datasets[datasetIdx]?.borderColor || '#999';
+                    
+                    return `<tr>
+                        <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};margin-right:6px;"></span></td>
+                        <td style="max-width: 180px; overflow: hidden; text-overflow: ellipsis;">${createGrantLabel(grant)}</td>
+                        <td>${formatNumber(value)}</td>
+                        <td>${formatCurrency(worth)}</td>
+                    </tr>`;
+                }).join('');
+
+                const totalShares = sumAtDate(point.breakdown);
+                const totalValue = valueSeries[index] || 0;
+
+                const html = `
+                    <div class="tooltip-title">📅 ${tooltip.title?.[0] || ''}</div>
+                    <div class="tooltip-body">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Grant</th>
+                                    <th>Shares</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                            <tfoot>
+                                <tr>
+                                    <td></td>
+                                    <td><strong>Total</strong></td>
+                                    <td><strong>${formatNumber(totalShares)}</strong></td>
+                                    <td><strong>${formatCurrency(totalValue)}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>`;
+
+                tooltipEl.innerHTML = html;
+
+                const { offsetLeft: positionX, offsetTop: positionY } = chart.canvas;
+                tooltipEl.style.opacity = 1;
+                tooltipEl.style.left = positionX + tooltip.caretX + 20 + 'px';
+                tooltipEl.style.top = positionY + tooltip.caretY + 'px';
+            };
+        };
+
+        /**
+         * Create tooltip DOM element
+         */
+        const createTooltipElement = () => {
+            const tooltipEl = document.createElement('div');
+            tooltipEl.id = 'chart-tooltip';
+            document.body.appendChild(tooltipEl);
+            return tooltipEl;
+        };
+
+        /**
+         * Generate distinct color for each grant
+         */
+        const generateColor = index => {
+            const palette = [
+                '#3c82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', 
+                '#14b8a6', '#ec4899', '#f97316', '#0ea5e9', '#84cc16',
+                '#6366f1', '#f43f5e', '#06b6d4', '#a855f7', '#eab308'
+            ];
+            const base = palette[index % palette.length];
+            return { base, alpha: hexToRgba(base, 0.5) };
+        };
+
+        /**
+         * Convert hex color to rgba
+         */
+        const hexToRgba = (hex, alpha = 1) => {
+            const sanitized = hex.replace('#', '');
+            const bigint = parseInt(sanitized, 16);
+            const r = (bigint >> 16) & 255;
+            const g = (bigint >> 8) & 255;
+            const b = bigint & 255;
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        };
+
+        /**
+         * Render grant summary chips
+         */
+        const renderGrantSummary = grants => {
+            grantSummary.innerHTML = grants.map((grant, idx) => {
+                const color = generateColor(idx);
+                const label = createGrantLabel(grant);
+                const total = formatNumber(grant.grantTotal);
+                const strikeInfo = grant.type === 'Option' ? ` | Strike: ${formatCurrency(grant.grantPrice)}` : '';
+                
+                return `<div class="chip" style="border-left: 3px solid ${color.base}">
+                    <strong>${label}</strong>
+                    <small>${grant.currency} | ${total} units${strikeInfo}</small>
+                </div>`;
+            }).join('');
+
+            grantSummary.classList.toggle('hidden', !grants.length);
+        };
+
+        /**
+         * Render table of upcoming vesting events
+         */
+        const renderUpcomingVests = () => {
+            if (!upcomingTable || !upcomingTableBody || !upcomingEmptyState) return;
+
+            if (!grantData.length) {
+                upcomingTable.classList.add('hidden');
+                upcomingEmptyState.classList.remove('hidden');
+                upcomingEmptyState.textContent = 'Load grant files to see upcoming vesting events.';
+                upcomingTableBody.innerHTML = '';
+                return;
+            }
+
+            const todayIso = new Date().toISOString().slice(0, 10);
+            const todayUtc = new Date(`${todayIso}T00:00:00Z`);
+            const sharePrice = Number.parseFloat(sharePriceInput.value) || 0;
+            const eventsMap = new Map();
+
+            grantData.forEach(grant => {
+                grant.entries.forEach(entry => {
+                    if (!entry.date || !Number.isFinite(entry.granted) || entry.granted <= 0) return;
+                    if (entry.date <= todayUtc) return;
+
+                    const key = entry.date.toISOString().slice(0, 10);
+                    if (!eventsMap.has(key)) {
+                        eventsMap.set(key, {
+                            date: entry.date,
+                            totalShares: 0,
+                            grants: []
+                        });
+                    }
+
+                    const bucket = eventsMap.get(key);
+                    bucket.totalShares += entry.granted;
+                    bucket.grants.push({
+                        label: grant.name || createGrantLabel(grant),
+                        shares: entry.granted,
+                        type: grant.type,
+                        strike: grant.grantPrice
+                    });
+                });
+            });
+
+            const upcomingEvents = Array.from(eventsMap.values())
+                .sort((a, b) => a.date - b.date)
+                .slice(0, 10);
+
+            if (!upcomingEvents.length) {
+                upcomingTable.classList.add('hidden');
+                upcomingEmptyState.classList.remove('hidden');
+                upcomingEmptyState.textContent = 'All future vesting events are beyond the current horizon.';
+                upcomingTableBody.innerHTML = '';
+                return;
+            }
+
+            const rows = upcomingEvents.map(event => {
+                const diffMs = event.date.getTime() - todayUtc.getTime();
+                const daysUntil = Math.max(0, Math.ceil(diffMs / MS_IN_DAY));
+                const totalValue = sharePrice > 0 ? event.grants.reduce((acc, item) => {
+                    const perShare = item.type === 'Option' ? Math.max(sharePrice - item.strike, 0) : sharePrice;
+                    return acc + (item.shares * perShare);
+                }, 0) : 0;
+
+                const breakdown = event.grants.map(item => 
+                    `<div class="upcoming-grant-chip" title="${item.label}">
+                        <span>${formatNumber(item.shares)}</span>
+                        <span>${item.label}</span>
+                    </div>`
+                ).join('');
+
+                return `<tr>
+                    <td>${formatDateDisplay(event.date)}</td>
+                    <td>${formatRelativeDays(daysUntil)}</td>
+                    <td>${formatNumber(event.totalShares)}</td>
+                    <td>${sharePrice > 0 ? formatCurrency(totalValue) : '—'}</td>
+                    <td class="upcoming-details-cell">${breakdown}</td>
+                </tr>`;
+            }).join('');
+
+            upcomingTableBody.innerHTML = rows;
+            upcomingTable.classList.remove('hidden');
+            upcomingEmptyState.classList.add('hidden');
+        };
+
+        /**
+         * Get vested shares as of today
+         */
+        const getVestedAsOfToday = () => {
+            const now = new Date();
+            const breakdown = {};
+            
+            grantData.forEach(grant => {
+                const vestedEntries = grant.entries.filter(entry => entry.date && entry.date <= now);
+                if (vestedEntries.length > 0) {
+                    const latest = vestedEntries[vestedEntries.length - 1];
+                    breakdown[grant.id] = latest.cumulative;
+                } else {
+                    breakdown[grant.id] = 0;
+                }
+            });
+            
+            return breakdown;
+        };
+
+        /**
+         * Calculate total value for vested shares as of today
+         */
+        const calculateCurrentValue = (sharePrice) => {
+            const now = new Date();
+            
+            return grantData.reduce((acc, grant) => {
+                const vestedEntries = grant.entries.filter(entry => entry.date && entry.date <= now);
+                if (vestedEntries.length === 0) return acc;
+                
+                const latest = vestedEntries[vestedEntries.length - 1];
+                const vested = latest.cumulative;
+                const strike = grant.type === 'Option' ? grant.grantPrice : 0;
+                const perShare = grant.type === 'Option' ? Math.max(sharePrice - strike, 0) : sharePrice;
+                
+                return acc + vested * perShare;
+            }, 0);
+        };
+
+        /**
+         * Update metrics display
+         */
+        const updateMetrics = () => {
+            const sharePrice = Number.parseFloat(sharePriceInput.value) || 0;
+            const percentChange = Number.parseFloat(priceChangeInput.value) || 0;
+
+            const vestedToday = getVestedAsOfToday();
+            const totalShares = sumAtDate(vestedToday);
+            const currentValue = calculateCurrentValue(sharePrice);
+            const projectedPrice = sharePrice * (1 + percentChange / 100);
+            const projectedValue = calculateCurrentValue(projectedPrice);
+
+            totalSharesEl.textContent = formatNumber(totalShares);
+            totalValueEl.textContent = formatCurrency(currentValue);
+            projectedValueEl.textContent = formatCurrency(projectedValue);
+
+            if (sharePrice > 0) {
+                const delta = projectedValue - currentValue;
+                const direction = delta >= 0 ? '📈 Increase' : '📉 Decrease';
+                const deltaText = formatCurrency(Math.abs(delta));
+                const projectedText = formatCurrency(projectedValue);
+                
+                priceChangeResult.innerHTML = `
+                    <strong>${direction}</strong>
+                    Projected value: ${projectedText}<br>
+                    Change: ${delta >= 0 ? '+' : '-'}${deltaText} (${percentChange >= 0 ? '+' : ''}${percentChange}%)
+                `;
+            } else {
+                priceChangeResult.textContent = 'Enter a share price and % change to calculate projected value.';
+            }
+
+            renderUpcomingVests();
+            renderChart();
+        };
+
+        /**
+         * Calculate total portfolio value at a given price
+         */
+        const calculateTotalValue = price => {
+            return grantData.reduce((acc, grant) => {
+                const latest = grant.entries.at(-1);
+                if (!latest) return acc;
+                
+                const vested = latest.cumulative;
+                const strike = grant.type === 'Option' ? grant.grantPrice : 0;
+                const perShare = grant.type === 'Option' ? Math.max(price - strike, 0) : price;
+                
+                return acc + vested * perShare;
+            }, 0);
+        };
+
+        /**
+         * Format number with commas
+         */
+        const formatNumber = value => {
+            const formatter = new Intl.NumberFormat(undefined, { 
+                maximumFractionDigits: 2,
+                minimumFractionDigits: 0
+            });
+            return formatter.format(value || 0);
+        };
+
+        /**
+         * Format currency value
+         */
+        const formatCurrency = (value, signed = false) => {
+            const formatter = new Intl.NumberFormat(undefined, { 
+                style: 'currency', 
+                currency: currencyCode, 
+                maximumFractionDigits: 2,
+                signDisplay: signed ? 'always' : 'auto'
+            });
+            return formatter.format(value || 0);
+        };
+
+        /**
+         * Format a date for display
+         */
+        const formatDateDisplay = date => {
+            const formatter = new Intl.DateTimeFormat(undefined, {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+            return formatter.format(date);
+        };
+
+        /**
+         * Format a relative days string (e.g., "2 wk 3 d")
+         */
+        const formatRelativeDays = days => {
+            if (days <= 0) return 'Today';
+            if (days === 1) return 'Tomorrow';
+            if (days < 7) return `${days} days`;
+
+            const weeks = Math.floor(days / 7);
+            const remainingDays = days % 7;
+
+            if (weeks < 4) {
+                if (remainingDays === 0) {
+                    return `${weeks} ${weeks === 1 ? 'week' : 'weeks'}`;
+                }
+                return `${weeks} wk ${remainingDays} d`;
+            }
+
+            const months = Math.floor(days / 30);
+            if (months >= 1) {
+                const rem = days - months * 30;
+                if (rem >= 7) {
+                    const extraWeeks = Math.floor(rem / 7);
+                    if (extraWeeks > 0) {
+                        return `${months} ${months === 1 ? 'month' : 'months'} ${extraWeeks} wk`;
+                    }
+                }
+                if (rem > 0) {
+                    return `${months} ${months === 1 ? 'month' : 'months'} ${rem} d`;
+                }
+                return `${months} ${months === 1 ? 'month' : 'months'}`;
+            }
+
+            return `${weeks} weeks`;
+        };
+
+        // Event Listeners
+        fileDrop.addEventListener('click', () => fileInput.click());
+        
+        fileDrop.addEventListener('dragover', evt => {
+            evt.preventDefault();
+            fileDrop.classList.add('dragover');
+        });
+        
+        fileDrop.addEventListener('dragleave', () => {
+            fileDrop.classList.remove('dragover');
+        });
+        
+        fileDrop.addEventListener('drop', evt => {
+            evt.preventDefault();
+            fileDrop.classList.remove('dragover');
+            loadFiles(evt.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', evt => loadFiles(evt.target.files));
+        sharePriceInput.addEventListener('input', () => updateMetrics());
+        priceChangeInput.addEventListener('input', () => updateMetrics());
+
+        // Hide tooltip on window resize
+        window.addEventListener('resize', () => {
+            const tooltip = document.getElementById('chart-tooltip');
+            if (tooltip) tooltip.style.opacity = 0;
+        });
+    </script>
+</body>
+</html>
