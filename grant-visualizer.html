@@ -41,14 +41,15 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
-            padding: 1.5rem;
+            gap: 1.25rem;
+            padding: 1.25rem;
         }
 
         h1 {
             margin: 0;
-            font-size: 1.8rem;
+            font-size: 1.75rem;
             font-weight: 700;
+            letter-spacing: -0.01em;
         }
 
         h2 {
@@ -62,7 +63,7 @@
 
         .layout {
             display: grid;
-            gap: 1.5rem;
+            gap: 1.25rem;
             grid-template-columns: minmax(280px, 340px) 1fr;
             align-items: flex-start;
         }
@@ -71,21 +72,22 @@
             background: var(--panel);
             border: 1px solid var(--panel-border);
             border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 20px -8px rgba(31, 36, 48, 0.15);
+            padding: 1.4rem;
+            box-shadow: 0 12px 38px -22px rgba(31, 36, 48, 0.4);
         }
 
         .section-heading {
-            margin: 0 0 0.75rem 0;
-            font-size: 1.1rem;
+            margin: 0 0 0.65rem 0;
+            font-size: 1.05rem;
             font-weight: 600;
+            letter-spacing: -0.005em;
         }
 
         label {
             font-weight: 600;
             display: block;
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
+            margin-bottom: 0.35rem;
+            font-size: 0.88rem;
         }
 
         input[type="number"], input[type="text"], input[type="file"] {
@@ -151,15 +153,15 @@
         .metrics {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+            gap: 0.85rem;
+            margin-bottom: 1.35rem;
         }
 
         .metrics .metric {
             background: linear-gradient(135deg, rgba(60, 130, 246, 0.08), rgba(60, 130, 246, 0.04));
             border: 1px solid rgba(60, 130, 246, 0.18);
             border-radius: 10px;
-            padding: 1rem;
+            padding: 0.9rem 1rem;
         }
 
         .metric-label {
@@ -175,6 +177,34 @@
             font-size: 1.5rem;
             font-weight: 700;
             margin: 0;
+        }
+
+        .metric-subtext {
+            margin-top: 0.35rem;
+            font-size: 0.75rem;
+            color: var(--muted);
+            letter-spacing: 0.02em;
+        }
+
+        .metric-delta {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-top: 0.45rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+
+        .delta-positive {
+            color: #059669;
+        }
+
+        .delta-zero {
+            color: var(--muted);
+        }
+
+        .delta-negative {
+            color: #dc2626;
         }
 
         .chart-panel {
@@ -302,6 +332,16 @@
             color: var(--muted);
         }
 
+        .exchange-note {
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-top: 0.6rem;
+            padding: 0.55rem 0.65rem;
+            border-radius: 8px;
+            border: 1px dashed var(--panel-border);
+            background: rgba(60, 130, 246, 0.06);
+        }
+
         .hidden {
             display: none !important;
         }
@@ -316,7 +356,7 @@
             background: var(--bg);
             border: 1px solid var(--panel-border);
             border-radius: 8px;
-            padding: 0.75rem;
+            padding: 0.75rem 0.85rem;
             margin-top: 0.75rem;
             font-size: 0.85rem;
             line-height: 1.5;
@@ -422,6 +462,7 @@
             <h2 class="section-heading">💰 Share Price</h2>
             <label for="sharePrice">Current share price</label>
             <input id="sharePrice" type="number" min="0" step="0.01" value="0" placeholder="Enter current price">
+            <div id="exchangeRateNotice" class="exchange-note hidden" aria-live="polite"></div>
 
             <div class="divider"></div>
 
@@ -441,14 +482,18 @@
                 <div class="metric">
                     <div class="metric-label">Total Vested</div>
                     <div class="metric-value" id="totalShares">0</div>
+                    <div class="metric-subtext">As of today</div>
+                    <div class="metric-delta delta-zero" id="shareDeltaDisplay">Awaiting future vest</div>
                 </div>
                 <div class="metric">
                     <div class="metric-label">Current Value</div>
                     <div class="metric-value" id="totalValue">$0.00</div>
+                    <div class="metric-delta delta-zero" id="valueDeltaDisplay">Enter share price to see change</div>
                 </div>
                 <div class="metric">
                     <div class="metric-label">Projected Value</div>
                     <div class="metric-value" id="projectedValue">$0.00</div>
+                    <div class="metric-subtext">Based on % change</div>
                 </div>
             </div>
 
@@ -494,13 +539,25 @@
         const upcomingTable = document.getElementById('upcomingTable');
         const upcomingTableBody = document.getElementById('upcomingTableBody');
         const upcomingEmptyState = document.getElementById('upcomingEmpty');
+        const exchangeRateNotice = document.getElementById('exchangeRateNotice');
+        const shareDeltaDisplay = document.getElementById('shareDeltaDisplay');
+        const valueDeltaDisplay = document.getElementById('valueDeltaDisplay');
 
         // State
         let grantData = [];
         let timeline = [];
         let chartInstance = null;
         let currencyCode = 'USD';
+        let baselineBreakdown = {};
+        let baselineTotalShares = 0;
+        let audUsdRate = null;
+        let exchangeRateTimestamp = null;
         const MS_IN_DAY = 24 * 60 * 60 * 1000;
+        const usdFormatter = new Intl.NumberFormat(undefined, {
+            style: 'currency',
+            currency: 'USD',
+            maximumFractionDigits: 2
+        });
 
         /**
          * Load and parse HTML grant files
@@ -756,6 +813,28 @@
         };
 
         /**
+         * Calculate intrinsic value for a breakdown at a given price
+         */
+        const calculateValueFromBreakdown = (breakdown, price) => {
+            if (!breakdown || !Number.isFinite(price)) return 0;
+            return grantData.reduce((acc, grant) => {
+                const amount = breakdown[grant.id] || 0;
+                if (!amount) return acc;
+                const strike = grant.type === 'Option' ? grant.grantPrice : 0;
+                const perShare = grant.type === 'Option' ? Math.max(price - strike, 0) : price;
+                return acc + amount * perShare;
+            }, 0);
+        };
+
+        /**
+         * Get the next future timeline point after reference date
+         */
+        const getNextFuturePoint = referenceDate => {
+            if (!timeline.length) return null;
+            return timeline.find(point => point.date > referenceDate) || null;
+        };
+
+        /**
          * Create a short, readable name for a grant
          */
         const createGrantLabel = grant => {
@@ -808,6 +887,8 @@
             const valueTotals = timeline.map((_, idx) => 
                 intrinsicTotals.reduce((acc, grantSeries) => acc + (grantSeries[idx] || 0), 0)
             );
+
+            const tooltipHandler = createTooltipHandler(valueTotals);
 
             // Custom plugin to draw vertical "today" line
             const todayLinePlugin = {
@@ -879,7 +960,7 @@
                         },
                         tooltip: {
                             enabled: false,
-                            external: createTooltipHandler(valueTotals)
+                            external: tooltipHandler
                         }
                     },
                     interaction: {
@@ -912,6 +993,11 @@
                             },
                             grid: {
                                 color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                callback: value => formatChartLabel(value),
+                                maxRotation: 0,
+                                autoSkipPadding: 12
                             }
                         }
                     }
@@ -927,7 +1013,8 @@
                 chartInstance = new Chart(canvas.getContext('2d'), config);
             } else {
                 chartInstance.config.data = config.data;
-                chartInstance.config.options.plugins.tooltip.external = createTooltipHandler(valueTotals);
+                chartInstance.options = config.options;
+                chartInstance.options.plugins.tooltip.external = tooltipHandler;
                 chartInstance.update();
             }
         };
@@ -952,24 +1039,47 @@
                 const sharePrice = Number.parseFloat(sharePriceInput.value) || 0;
                 const rows = grantData.map((grant, datasetIdx) => {
                     const value = point.breakdown[grant.id] || 0;
+                    const baseline = baselineBreakdown?.[grant.id] || 0;
+                    const shareDelta = value - baseline;
                     const strike = grant.type === 'Option' ? grant.grantPrice : 0;
                     const perShare = grant.type === 'Option' ? Math.max(sharePrice - strike, 0) : sharePrice;
-                    const worth = value * perShare;
+                    const worth = sharePrice > 0 ? value * perShare : null;
+                    const worthDelta = sharePrice > 0 ? shareDelta * perShare : null;
                     const color = chart.config.data.datasets[datasetIdx]?.borderColor || '#999';
-                    
+                    const deltaClass = shareDelta > 0 ? 'delta-positive' : shareDelta < 0 ? 'delta-negative' : 'delta-zero';
+                    const deltaSharesDisplay = shareDelta === 0 ? '—' : `${shareDelta > 0 ? '+' : '-'}${formatNumber(Math.abs(shareDelta))}`;
+                    const deltaValueDisplay = worthDelta === null || worthDelta === 0 ? '—' : formatCurrency(worthDelta, true);
+                    const valueDisplay = worth === null ? '—' : formatCurrency(worth);
+
                     return `<tr>
                         <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};margin-right:6px;"></span></td>
-                        <td style="max-width: 180px; overflow: hidden; text-overflow: ellipsis;">${createGrantLabel(grant)}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${createGrantLabel(grant)}</td>
                         <td>${formatNumber(value)}</td>
-                        <td>${formatCurrency(worth)}</td>
+                        <td class="${deltaClass}">${deltaSharesDisplay}</td>
+                        <td>${valueDisplay}</td>
+                        <td class="${deltaClass}">${deltaValueDisplay}</td>
                     </tr>`;
                 }).join('');
 
                 const totalShares = sumAtDate(point.breakdown);
                 const totalValue = valueSeries[index] || 0;
+                const totalShareDelta = totalShares - baselineTotalShares;
+                const baselineValue = sharePrice > 0 ? calculateValueFromBreakdown(baselineBreakdown, sharePrice) : 0;
+                const totalValueDelta = sharePrice > 0 ? totalValue - baselineValue : null;
+                const totalDeltaClass = totalShareDelta > 0 ? 'delta-positive' : totalShareDelta < 0 ? 'delta-negative' : 'delta-zero';
+                const totalValueDeltaClass = totalValueDelta === null ? 'delta-zero' : totalValueDelta > 0 ? 'delta-positive' : totalValueDelta < 0 ? 'delta-negative' : 'delta-zero';
+
+                const totalSharesDisplay = formatNumber(totalShares);
+                const totalDeltaSharesDisplay = totalShareDelta === 0 ? '—' : `${totalShareDelta > 0 ? '+' : '-'}${formatNumber(Math.abs(totalShareDelta))}`;
+                const totalValueDisplay = sharePrice > 0 ? formatCurrency(totalValue) : '—';
+                const totalValueDeltaDisplay = totalValueDelta === null || totalValueDelta === 0 ? '—' : formatCurrency(totalValueDelta, true);
 
                 const html = `
-                    <div class="tooltip-title">📅 ${tooltip.title?.[0] || ''}</div>
+                    <div class="tooltip-title">📅 ${formatDateDisplay(point.date)}</div>
+                    <div class="metric-delta ${totalDeltaClass}" style="margin-bottom: 0.5rem;">
+                        Δ vs today: ${totalDeltaSharesDisplay === '—' ? 'No change yet' : `${totalDeltaSharesDisplay} shares`}
+                        ${sharePrice > 0 && totalValueDeltaDisplay !== '—' ? ` • ${totalValueDeltaDisplay}` : ''}
+                    </div>
                     <div class="tooltip-body">
                         <table>
                             <thead>
@@ -977,7 +1087,9 @@
                                     <th></th>
                                     <th>Grant</th>
                                     <th>Shares</th>
+                                    <th>Δ Shares</th>
                                     <th>Value</th>
+                                    <th>Δ Value</th>
                                 </tr>
                             </thead>
                             <tbody>${rows}</tbody>
@@ -985,8 +1097,10 @@
                                 <tr>
                                     <td></td>
                                     <td><strong>Total</strong></td>
-                                    <td><strong>${formatNumber(totalShares)}</strong></td>
-                                    <td><strong>${formatCurrency(totalValue)}</strong></td>
+                                    <td><strong>${totalSharesDisplay}</strong></td>
+                                    <td class="${totalDeltaClass}"><strong>${totalDeltaSharesDisplay}</strong></td>
+                                    <td><strong>${totalValueDisplay}</strong></td>
+                                    <td class="${totalValueDeltaClass}"><strong>${totalValueDeltaDisplay}</strong></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -1186,27 +1300,101 @@
             const sharePrice = Number.parseFloat(sharePriceInput.value) || 0;
             const percentChange = Number.parseFloat(priceChangeInput.value) || 0;
 
+            const setDeltaState = (element, state, text) => {
+                if (!element) return;
+                element.classList.remove('delta-positive', 'delta-negative', 'delta-zero');
+                element.classList.add(state);
+                element.textContent = text;
+            };
+
+            if (!grantData.length) {
+                baselineBreakdown = {};
+                baselineTotalShares = 0;
+                totalSharesEl.textContent = '0';
+                totalValueEl.textContent = formatCurrency(0);
+                projectedValueEl.textContent = formatCurrency(0);
+                setDeltaState(shareDeltaDisplay, 'delta-zero', 'Load grant files to see next vest');
+                setDeltaState(valueDeltaDisplay, 'delta-zero', 'Enter share price to see value change');
+                priceChangeResult.textContent = 'Enter a share price and % change to calculate projected value.';
+                renderUpcomingVests();
+                renderChart();
+                return;
+            }
+
             const vestedToday = getVestedAsOfToday();
             const totalShares = sumAtDate(vestedToday);
             const currentValue = calculateCurrentValue(sharePrice);
             const projectedPrice = sharePrice * (1 + percentChange / 100);
             const projectedValue = calculateCurrentValue(projectedPrice);
 
+            baselineBreakdown = vestedToday;
+            baselineTotalShares = totalShares;
+
             totalSharesEl.textContent = formatNumber(totalShares);
             totalValueEl.textContent = formatCurrency(currentValue);
             projectedValueEl.textContent = formatCurrency(projectedValue);
+
+            const now = new Date();
+            const nextPoint = getNextFuturePoint(now);
+
+            if (nextPoint) {
+                const nextTotal = sumAtDate(nextPoint.breakdown);
+                const shareDelta = nextTotal - totalShares;
+                const formattedDate = formatDateDisplay(nextPoint.date);
+                if (shareDelta > 0) {
+                    setDeltaState(shareDeltaDisplay, 'delta-positive', `Next: +${formatNumber(shareDelta)} shares on ${formattedDate}`);
+                } else if (shareDelta < 0) {
+                    setDeltaState(shareDeltaDisplay, 'delta-negative', `Next: ${formatNumber(shareDelta)} shares on ${formattedDate}`);
+                } else {
+                    setDeltaState(shareDeltaDisplay, 'delta-zero', `Next on ${formattedDate} (no new shares)`);
+                }
+
+                if (sharePrice > 0) {
+                    const nextValue = calculateValueFromBreakdown(nextPoint.breakdown, sharePrice);
+                    const valueDelta = nextValue - currentValue;
+                    if (valueDelta > 0) {
+                        let text = `Next: ${formatCurrency(valueDelta, true)} on ${formattedDate}`;
+                        if (currencyCode === 'AUD' && Number.isFinite(audUsdRate)) {
+                            text += ` (${formatUsd(valueDelta * audUsdRate)})`;
+                        }
+                        setDeltaState(valueDeltaDisplay, 'delta-positive', text);
+                    } else if (valueDelta < 0) {
+                        let text = `Next: ${formatCurrency(valueDelta, true)} on ${formattedDate}`;
+                        if (currencyCode === 'AUD' && Number.isFinite(audUsdRate)) {
+                            text += ` (${formatUsd(valueDelta * audUsdRate)})`;
+                        }
+                        setDeltaState(valueDeltaDisplay, 'delta-negative', text);
+                    } else {
+                        setDeltaState(valueDeltaDisplay, 'delta-zero', `Next on ${formattedDate} (no value change at this price)`);
+                    }
+                } else {
+                    setDeltaState(valueDeltaDisplay, 'delta-zero', 'Enter share price to see value change');
+                }
+            } else {
+                setDeltaState(shareDeltaDisplay, 'delta-zero', 'All scheduled grants fully vested');
+                if (sharePrice > 0) {
+                    setDeltaState(valueDeltaDisplay, 'delta-zero', 'No upcoming value change');
+                } else {
+                    setDeltaState(valueDeltaDisplay, 'delta-zero', 'Enter share price to see value change');
+                }
+            }
 
             if (sharePrice > 0) {
                 const delta = projectedValue - currentValue;
                 const direction = delta >= 0 ? '📈 Increase' : '📉 Decrease';
                 const deltaText = formatCurrency(Math.abs(delta));
                 const projectedText = formatCurrency(projectedValue);
-                
-                priceChangeResult.innerHTML = `
+                let inner = `
                     <strong>${direction}</strong>
                     Projected value: ${projectedText}<br>
                     Change: ${delta >= 0 ? '+' : '-'}${deltaText} (${percentChange >= 0 ? '+' : ''}${percentChange}%)
                 `;
+                if (currencyCode === 'AUD' && Number.isFinite(audUsdRate)) {
+                    const currentUsd = formatUsd(currentValue * audUsdRate);
+                    const projectedUsd = formatUsd(projectedValue * audUsdRate);
+                    inner += `<br><small>≈ ${currentUsd} now • ${projectedUsd} projected</small>`;
+                }
+                priceChangeResult.innerHTML = inner;
             } else {
                 priceChangeResult.textContent = 'Enter a share price and % change to calculate projected value.';
             }
@@ -1268,6 +1456,27 @@
             return formatter.format(date);
         };
 
+        const formatChartLabel = label => {
+            if (!label) return '';
+            const date = new Date(`${label}T00:00:00Z`);
+            if (Number.isNaN(date.getTime())) return label;
+            const formatter = new Intl.DateTimeFormat(undefined, {
+                month: 'short',
+                day: 'numeric'
+            });
+            return formatter.format(date);
+        };
+
+        const formatUsd = value => usdFormatter.format(value || 0);
+
+        const formatTimestamp = date => {
+            const formatter = new Intl.DateTimeFormat(undefined, {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            });
+            return formatter.format(date);
+        };
+
         /**
          * Format a relative days string (e.g., "2 wk 3 d")
          */
@@ -1304,6 +1513,43 @@
             return `${weeks} weeks`;
         };
 
+        const updateExchangeRateNotice = text => {
+            if (!exchangeRateNotice) return;
+            if (!text) {
+                exchangeRateNotice.classList.add('hidden');
+                exchangeRateNotice.textContent = '';
+                return;
+            }
+            exchangeRateNotice.textContent = text;
+            exchangeRateNotice.classList.remove('hidden');
+        };
+
+        const fetchAudUsdRate = () => {
+            if (!exchangeRateNotice) return;
+            updateExchangeRateNotice('Fetching live AUD → USD rate…');
+            fetch('https://open.er-api.com/v6/latest/AUD')
+                .then(response => response.json())
+                .then(data => {
+                    const rate = data?.rates?.USD;
+                    if (!Number.isFinite(rate)) {
+                        throw new Error('USD rate missing');
+                    }
+                    audUsdRate = rate;
+                    let lastUpdated = data?.time_last_update_utc ? new Date(data.time_last_update_utc) : new Date();
+                    if (Number.isNaN(lastUpdated.getTime())) {
+                        lastUpdated = new Date();
+                    }
+                    exchangeRateTimestamp = lastUpdated;
+                    updateExchangeRateNotice(`1 AUD ≈ ${formatUsd(rate)} • updated ${formatTimestamp(exchangeRateTimestamp)}`);
+                })
+                .catch(err => {
+                    console.warn('Unable to fetch AUD → USD rate', err);
+                    updateExchangeRateNotice('Live AUD → USD rate unavailable right now.');
+                });
+        };
+
+        fetchAudUsdRate();
+
         // Event Listeners
         fileDrop.addEventListener('click', () => fileInput.click());
         
@@ -1331,6 +1577,8 @@
             const tooltip = document.getElementById('chart-tooltip');
             if (tooltip) tooltip.style.opacity = 0;
         });
+
+        updateMetrics();
     </script>
 </body>
 </html>
