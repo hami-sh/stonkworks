@@ -7,6 +7,6 @@ A simple tool to visualize your Shareworks grants.
 1. Log in to Shareworks.
 2. Go to the **Portfolio** tab.
 3. Open each of your grants.
-4. Save each grant page (e.g., "Save Page As..." or print to PDF/HTML if supported, or just the HTML file itself). *Note: The tool likely expects HTML files saved from the browser.*
+4. Save each grant page (e.g., "Save Page As..." to HTML*
 5. Open `grant-visualizer.html` in your browser.
 6. Drag and drop all the saved grant files at once into the window.
