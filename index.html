@@ -4,10 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShareWorks Grant Visualizer</title>
+    <title>StonkWorks</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="manifest" href="site.webmanifest">
     <style>
         :root {
             color-scheme: light dark;
@@ -555,14 +559,152 @@
             font-size: 1.1rem;
             color: var(--accent);
         }
+
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal-backdrop.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.25);
+            transform: scale(0.95);
+            transition: transform 0.2s ease;
+            position: relative;
+        }
+
+        .modal-backdrop.visible .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--muted);
+            padding: 0.5rem;
+            line-height: 1;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .help-step {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            align-items: flex-start;
+        }
+
+        .help-step-number {
+            background: var(--accent-bg);
+            color: var(--accent);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+            margin-top: 0.1rem;
+        }
+
+        .help-step-content h3 {
+            margin: 0 0 0.25rem 0;
+            font-size: 1rem;
+        }
+
+        .help-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+            margin-left: 1rem;
+            flex-shrink: 0;
+        }
+
+        #dragOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(60, 130, 246, 0.9);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            backdrop-filter: blur(4px);
+        }
+
+        #dragOverlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #dragOverlay .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        #dragOverlay h2 {
+            font-size: 2rem;
+            margin: 0;
+        }
+
+        #dragOverlay * {
+            pointer-events: none;
+        }
     </style>
 </head>
 
 <body>
-    <header>
-        <h1>📊 ShareWorks Grant Visualizer</h1>
-        <p>Load exported ShareWorks "Employee Grant Details" HTML files to visualize your equity vesting progress and
-            calculate values over time.</p>
+    <header style="display: flex; justify-content: space-between; align-items: center;">
+        <h1 style="margin: 0;">StonkWorks</h1>
+        <button id="helpBtn" class="btn-secondary help-btn" aria-label="Help">?</button>
     </header>
 
     <div class="layout">
@@ -572,7 +714,7 @@
 
             <div id="uploadSection" class="file-drop">
                 <div class="upload-icon">📂</div>
-                <p>Drop files here or click to select</p>
+                <p>Click here to select files</p>
                 <p class="text-sm text-muted">Supports multiple files</p>
                 <input type="file" id="fileInput" multiple accept=".html,text/html" class="hidden">
             </div>
@@ -1928,8 +2070,8 @@
             }
         };
 
-        const clearCache = () => {
-            if (!confirm('Are you sure you want to clear all loaded data?')) return;
+        const clearCache = (skipConfirm = false) => {
+            if (!skipConfirm && !confirm('Are you sure you want to clear all loaded data?')) return;
 
             localStorage.removeItem(CACHE_KEY);
             grantData = [];
@@ -1954,22 +2096,44 @@
         };
 
         // Event Listeners
-        clearCacheBtn.addEventListener('click', clearCache);
+        clearCacheBtn.addEventListener('click', () => clearCache(false));
         uploadSection.addEventListener('click', () => fileInput.click());
 
-        uploadSection.addEventListener('dragover', evt => {
-            evt.preventDefault();
-            uploadSection.classList.add('dragover');
+        // Global Drag and Drop
+        const dragOverlay = document.getElementById('dragOverlay');
+        let dragCounter = 0;
+
+        window.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            dragOverlay.classList.add('visible');
         });
 
-        uploadSection.addEventListener('dragleave', () => {
-            uploadSection.classList.remove('dragover');
+        window.addEventListener('dragleave', (e) => {
+            dragCounter--;
+            if (dragCounter === 0) {
+                dragOverlay.classList.remove('visible');
+            }
         });
 
-        uploadSection.addEventListener('drop', evt => {
-            evt.preventDefault();
-            uploadSection.classList.remove('dragover');
-            loadFiles(evt.dataTransfer.files);
+        window.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            dragOverlay.classList.remove('visible');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                if (grantData.length > 0) {
+                    if (confirm('Do you want to clear existing data before loading new files?\n\nOK: Clear and Load\nCancel: Append to existing')) {
+                        clearCache(true);
+                    }
+                }
+                loadFiles(files);
+            }
         });
 
         fileInput.addEventListener('change', evt => loadFiles(evt.target.files));
@@ -1997,6 +2161,75 @@
         // Initialize
         loadFromCache();
         updateMetrics();
+    </script>
+    <!-- Drag Overlay -->
+    <div id="dragOverlay">
+        <div class="icon">📂</div>
+        <h2>Drop files to load</h2>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal-backdrop">
+        <div class="modal-content">
+            <button id="closeModal" class="modal-close" aria-label="Close help">&times;</button>
+            <h2 style="margin-bottom: 1.5rem;">Getting Started</h2>
+
+            <div class="help-step">
+                <div class="help-step-number">1</div>
+                <div class="help-step-content">
+                    <h3>Export your data</h3>
+                    <p>Log in to ShareWorks and navigate to the portfolio tab. Open up each grant that you have been
+                        given for RSUs and Options. Right click on each page and hit "Save Page As..." and proceed to
+                        save as HTML. Drag and drop all HTML files into the window.</p>
+                </div>
+            </div>
+
+            <div class="help-step">
+                <div class="help-step-number">2</div>
+                <div class="help-step-content">
+                    <h3>Analyze your equity</h3>
+                    <p>Enter the current share price to see your total vested value. Use the "What If" calculator to
+                        project future value based on price changes.</p>
+                </div>
+            </div>
+
+            <div style="text-align: right; margin-top: 2rem;">
+                <button id="gotItBtn" class="btn-secondary"
+                    style="background: var(--accent); color: white; border: none;">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Help Modal Logic
+        const helpModal = document.getElementById('helpModal');
+        const helpBtn = document.getElementById('helpBtn');
+        const closeModal = document.getElementById('closeModal');
+        const gotItBtn = document.getElementById('gotItBtn');
+        const HELP_SEEN_KEY = 'shareworks_help_seen';
+
+        const showHelp = () => {
+            helpModal.classList.add('visible');
+        };
+
+        const hideHelp = () => {
+            helpModal.classList.remove('visible');
+            localStorage.setItem(HELP_SEEN_KEY, 'true');
+        };
+
+        helpBtn.addEventListener('click', showHelp);
+        closeModal.addEventListener('click', hideHelp);
+        gotItBtn.addEventListener('click', hideHelp);
+
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) hideHelp();
+        });
+
+        // Show on first visit
+        if (!localStorage.getItem(HELP_SEEN_KEY)) {
+            // Small delay to ensure smooth entrance
+            setTimeout(showHelp, 500);
+        }
     </script>
 </body>
 
